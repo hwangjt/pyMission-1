@@ -77,6 +77,8 @@ class AllocationProblem(Assembly):
                 seg.set_init_h_pt(altitude)
                 seg.driver.system_type = 'serial'
                 seg.coupled_solver.system_type = 'serial'
+                seg.driver.gradient_options.iprint = 0
+#                seg.coupled_solver.gradient_options.iprint = 0
                 #seg.coupled_solver.pre_setup()
 
         self.add('pax_flt', Array(np.zeros((num_routes, num_ac)), iotype='in'))
