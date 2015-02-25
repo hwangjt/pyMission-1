@@ -67,16 +67,17 @@ class AllocationProblem(Assembly):
                 ac_name = ac_data['new_ac'][iac]
                 seg_name = 'Seg_%03i_%03i'%(irt,iac)
 
-                self.add(seg_name, MissionSegment(num_elem=num_elem, num_cp=num_cp,
-                                                  x_pts=x_init, params_file=ac_name+'_params.py',
-                                                  aero_surr=ac_aerosurr[ac_name],
-                                                  jac_h=jac_h, jac_gamma=jac_gamma))
+                seg = self.add(seg_name, MissionSegment(num_elem=num_elem, num_cp=num_cp,
+                                                        x_pts=x_init, params_file=ac_name+'_params.py',
+                                                        aero_surr=ac_aerosurr[ac_name],
+                                                        jac_h=jac_h, jac_gamma=jac_gamma))
 
-                exec('self.'+seg_name+'.h_pt = h_init')
-                exec('self.'+seg_name+'.M_pt = M_init')
-                exec('self.'+seg_name+'.set_init_h_pt(altitude)')
-                exec('self.'+seg_name+'.driver.system_type = \'serial\'')
-                exec('self.'+seg_name+'.coupled_solver.system_type = \'serial\'')
+                seg.h_pt = h_init
+                seg.M_pt = M_init
+                seg.set_init_h_pt(altitude)
+                seg.driver.system_type = 'serial'
+                seg.coupled_solver.system_type = 'serial'
+                #seg.coupled_solver.pre_setup()
 
         self.add('pax_flt', Array(np.zeros((num_routes, num_ac)), iotype='in'))
         self.add('flt_day', Array(np.zeros((num_routes, num_ac)), iotype='in'))
@@ -185,19 +186,34 @@ class AllocationProblem(Assembly):
         self.demand = demand
         self.ac_avail = ac_avail
 
+        self.add('missions', Driver())        
+        for irt in xrange(self.num_routes):
+            for inac in xrange(self.num_new_ac):
+                seg_name = 'Seg_%03i_%03i'%(irt,inac)
+                self.missions.workflow.add(seg_name)
+#        self.missions.system_type = 'parallel'
+        self.missions.gradient_options.lin_solver = "linear_gs"
+        self.missions.gradient_options.iprint = 0
+
+        self.replace('driver', pyOptSparseDriver())
+        self.driver.optimizer = 'SNOPT'
+        self.driver.options = {'Iterations limit': 5000000}
+        self.driver.gradient_options.lin_solver = "linear_gs"
+        self.driver.gradient_options.maxiter = 1
+        self.driver.gradient_options.derivative_direction = 'adjoint'
+        self.driver.gradient_options.iprint = 0
+        self.driver.workflow.add(['missions', 'SysProfit', 'SysPaxCon', 'SysAircraftCon'])
+        self.driver.system_type = 'serial'
+            
 
 if __name__ == '__main__':
     alloc = AllocationProblem('problem_3rt_2ac.py')
 
-    alloc.replace('driver', pyOptSparseDriver())
-    alloc.driver.optimizer = 'SNOPT'
-    alloc.driver.options = {'Iterations limit': 5000000}
-
     alloc.driver.add_objective('profit')
-    alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
-    alloc.driver.add_parameter('flt_day', low=0, high=10)
-    alloc.driver.add_constraint('0.1*demand < pax_con < demand')
-    alloc.driver.add_constraint('0.0 < ac_con < ac_avail')
+#    alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
+#    alloc.driver.add_parameter('flt_day', low=0, high=10)
+#    alloc.driver.add_constraint('0.1*demand < pax_con < demand')
+#    alloc.driver.add_constraint('0.0 < ac_con < ac_avail')
     for irt in xrange(alloc.num_routes):
         for inac in xrange(alloc.num_new_ac):
             alloc.driver.add_parameter('h_pt_%03i_%03i'%(irt,inac), low=0.0, high=14.1)

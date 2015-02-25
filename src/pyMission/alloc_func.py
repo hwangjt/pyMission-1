@@ -33,8 +33,8 @@ class Profit(Component):
         pax_flt, flt_day, fuelburn = self.pax_flt, self.flt_day, self.fuelburn * 1e5
         prc_pax, cost_fuel, cost_nf = self.prc_pax, self.cost_fuel, self.cost_nf
 
-        self.profit = numpy.sum(prc_pax * pax_flt * flt_day) / 1e6 + \
-                      numpy.sum((cost_fuel * fuelburn + cost_nf) * flt_day) / 1e6
+        self.profit = np.sum(prc_pax * pax_flt * flt_day) / 1e6 + \
+                      np.sum((cost_fuel * fuelburn + cost_nf) * flt_day) / 1e6
 
     def list_deriv_vars(self):
         """ Return lists of inputs and outputs where we defined derivatives.
@@ -52,12 +52,12 @@ class Profit(Component):
         prc_pax, cost_fuel, cost_nf = self.prc_pax, self.cost_fuel, self.cost_nf
 
         if 'pax_flt' in arg:
-            result['profit'] += numpy.sum(prc_pax * arg['pax_flt'] * flt_day) / 1e6
+            result['profit'] += np.sum(prc_pax * arg['pax_flt'] * flt_day) / 1e6
         if 'flt_day' in arg:
-            result['profit'] += numpy.sum(prc_pax * pax_flt * arg['flt_day']) / 1e6 + \
-                                numpy.sum((cost_fuel * fuelburn + cost_nf) * arg['flt_day']) / 1e6
+            result['profit'] += np.sum(prc_pax * pax_flt * arg['flt_day']) / 1e6 + \
+                                np.sum((cost_fuel * fuelburn + cost_nf) * arg['flt_day']) / 1e6
         if 'fuelburn' in arg:
-            result['profit'] += numpy.sum((cost_fuel * arg['fuelburn'] + cost_nf) * flt_day) / 1e6
+            result['profit'] += np.sum((cost_fuel * arg['fuelburn'] + cost_nf) * flt_day) / 1e6
 
     def apply_derivT(self, arg, result):
         pax_flt, flt_day, fuelburn = self.pax_flt, self.flt_day, self.fuelburn * 1e5
@@ -91,7 +91,7 @@ class PaxCon(Component):
     def execute(self):
         pax_flt, flt_day = self.pax_flt, self.flt_day
 
-        self.pax_con = numpy.sum(pax_flt * flt_day, axis=1)
+        self.pax_con = np.sum(pax_flt * flt_day, axis=1)
 
     def list_deriv_vars(self):
         """ Return lists of inputs and outputs where we defined derivatives.
@@ -108,17 +108,17 @@ class PaxCon(Component):
         pax_flt, flt_day = self.pax_flt, self.flt_day
 
         if 'pax_flt' in args:
-            result['pax_con'] += numpy.sum(arg['pax_flt'] * flt_day, axis=1)
+            result['pax_con'] += np.sum(arg['pax_flt'] * flt_day, axis=1)
         if 'flt_day' in args:
-            result['pax_con'] += numpy.sum(pax_flt * arg['flt_day'], axis=1)
+            result['pax_con'] += np.sum(pax_flt * arg['flt_day'], axis=1)
 
     def apply_derivT(self, arg, result):
         pax_flt, flt_day = self.pax_flt, self.flt_day
 
         if 'pax_flt' in args:
-            result['pax_flt'] += numpy.dot(numpy.diag(arg['pax_con']), flt_day)
+            result['pax_flt'] += np.dot(np.diag(arg['pax_con']), flt_day)
         if 'flt_day' in args:
-            result['flt_day'] += numpy.dot(numpy.diag(arg['pax_con']), pax_flt)
+            result['flt_day'] += np.dot(np.diag(arg['pax_con']), pax_flt)
 
 
 class AircraftCon(Component):
@@ -144,7 +144,7 @@ class AircraftCon(Component):
         flt_day, time = self.flt_day, self.time
         maintenance, turnaround = self.maintenance, self.turnaround
 
-        self.ac_con = numpy.sum(flt_day * (time * maintenance + turnaround), axis=0)
+        self.ac_con = np.sum(flt_day * (time * maintenance + turnaround), axis=0)
 
     def list_deriv_vars(self):
         """ Return lists of inputs and outputs where we defined derivatives.
@@ -162,15 +162,15 @@ class AircraftCon(Component):
         maintenance, turnaround = self.maintenance, self.turnaround
 
         if 'flt_day' in args:
-            result['ac_con'] += numpy.sum(arg['flt_day'] * (time * maintenance + turnaround), axis=0)
+            result['ac_con'] += np.sum(arg['flt_day'] * (time * maintenance + turnaround), axis=0)
         if 'time' in args:
-            result['ac_con'] += numpy.sum(flt_day * arg['time'] * maintenance, axis=0)
+            result['ac_con'] += np.sum(flt_day * arg['time'] * maintenance, axis=0)
 
     def apply_derivT(self, arg, result):
         flt_day, time = self.flt_day, self.time
         maintenance, turnaround = self.maintenance, self.turnaround
 
         if 'flt_day' in args:
-            result['flt_day'] += numpy.dot(time * maintenance + turnaround, numpy.diag(arg['ac_con']))
+            result['flt_day'] += np.dot(time * maintenance + turnaround, np.diag(arg['ac_con']))
         if 'time' in args:
-            result['time'] += numpy.dot(flt_day * maintenance, numpy.diag(arg['ac_con']))
+            result['time'] += np.dot(flt_day * maintenance, np.diag(arg['ac_con']))
