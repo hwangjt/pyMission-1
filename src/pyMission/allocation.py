@@ -180,16 +180,29 @@ class AllocationProblem(Assembly):
 if __name__ == '__main__':
     from subprocess import call
 
-    def setup_opt(asm):
-        asm.replace('driver', pyOptSparseDriver())
+    def setup_opt(seg):
+        asm = set_as_top(Assembly())
+        asm.add('driver', pyOptSparseDriver())
         asm.driver.optimizer = 'SNOPT'
         asm.driver.options = {'Iterations limit': 5000000}#, 'Verify level':3}
         asm.driver.gradient_options.lin_solver = "linear_gs"
         asm.driver.gradient_options.maxiter = 1
         asm.driver.gradient_options.derivative_direction = 'adjoint'
         asm.driver.gradient_options.iprint = 0
+        # asm.replace('driver', SimpleDriver())
         asm.driver.system_type = 'serial'
-        
+
+        asm.add('segment', seg)
+        asm.driver.add_objective('segment.fuelburn')
+        asm.driver.add_parameter('segment.h_pt', low=0.0, high=14.1)
+        asm.driver.add_constraint('segment.h[0] = 0.0')
+        asm.driver.add_constraint('segment.h[-1] = 0.0')
+        asm.driver.add_constraint('segment.Tmin < 0.0')
+        asm.driver.add_constraint('segment.Tmax < 0.0')
+        asm.driver.add_constraint('%.15f < segment.Gamma < %.15f' % \
+                                  (alloc.gamma_lb,alloc.gamma_ub), linear=True)
+
+        return asm
 
     alloc = AllocationProblem('problem_3rt_2ac.py')
     if 0:
@@ -200,24 +213,13 @@ if __name__ == '__main__':
 
     for irt in xrange(alloc.num_routes):
         for inac in xrange(alloc.num_new_ac):
-            seg_name = 'Seg_%03i_%03i'%(irt,inac)
-            exec ('seg = alloc.'+seg_name)
-            setup_opt(seg)
-            seg.pre_setup()
-            seg.driver.add_objective('fuelburn')
-            seg.driver.add_parameter('h_pt', low=0.0, high=14.1)
-            seg.driver.add_constraint('h[0] = 0.0')
-            seg.driver.add_constraint('h[-1] = 0.0')
-            seg.driver.add_constraint('Tmin < 0.0')
-            seg.driver.add_constraint('Tmax < 0.0')
-            seg.driver.add_constraint('%.15f < Gamma < %.15f' % \
-                                      (alloc.gamma_lb,alloc.gamma_ub), linear=True)
-            alloc.run()
-            seg.driver.clear_objectives()
-            seg.driver.clear_parameters()
-            seg.driver.clear_constraints()
-            seg.replace('driver', Driver())
-            call(['mv', 'SNOPT_print.out', 'SNOPT_%03i_%03i_print.out'%(irt,inac)])
+            seg_name = 'Seg_%03i_%03i' % (irt,inac)
+            seg = alloc.get(seg_name)
+            sub_opt = setup_opt(seg)
+            
+            sub_opt.run()
+
+            call(['mv', 'SNOPT_print.out', 'SNOPT_%03i_%03i_print.out' % (irt,inac)])
             call(['rm', 'SNOPT_summary.out'])
 
     alloc.driver.add_objective('profit')
