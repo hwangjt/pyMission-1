@@ -217,6 +217,21 @@ if __name__ == '__main__':
     alloc.driver.gradient_options.iprint = 0
     alloc.driver.system_type = 'serial'
 
+    for irt in xrange(alloc.num_routes):
+        for inac in xrange(alloc.num_new_ac):
+            alloc.driver.add_objective('fuelburn_%03i_%03i'%(irt,inac))
+            alloc.driver.add_parameter('h_pt_%03i_%03i'%(irt,inac), low=0.0, high=14.1)
+            alloc.driver.add_constraint('h_%03i_%03i[0] = 0.0'%(irt,inac))
+            alloc.driver.add_constraint('h_%03i_%03i[-1] = 0.0'%(irt,inac))
+            alloc.driver.add_constraint('Tmin_%03i_%03i < 0.0'%(irt,inac))
+            alloc.driver.add_constraint('Tmax_%03i_%03i < 0.0'%(irt,inac))
+            alloc.driver.add_constraint('%.15f < Gamma_%03i_%03i < %.15f' % \
+                                        (alloc.gamma_lb,irt,inac,alloc.gamma_ub), linear=True)
+            alloc.run()
+            alloc.driver.clear_objectives()
+            alloc.driver.clear_parameters()
+            alloc.driver.clear_constraints()
+
     alloc.driver.add_objective('profit')
     alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
     alloc.driver.add_parameter('flt_day', low=0, high=10)
