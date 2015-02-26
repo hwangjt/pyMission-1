@@ -1,7 +1,9 @@
+from pprint import pprint as pp
+
 import numpy as np
 
 from openmdao.lib.drivers.api import NewtonSolver, FixedPointIterator, BroydenSolver
-from openmdao.main.api import Assembly, set_as_top, Driver
+from openmdao.main.api import Assembly, set_as_top, Driver, Component
 from openmdao.main.datatypes.api import Array, Float
 
 from pyMission.segment import MissionSegment
@@ -205,11 +207,23 @@ if __name__ == '__main__':
 
         return asm
 
+    def var_dump(asmb, indent=0):
+        spaces = indent * " "
+        print spaces + "asmb.name"
+        for k,v in alloc.items(recurse=True):
+            if isinstance(v, Component):
+                print spaces + "component: ", k
+            else:
+                md = asmb.get_metadata(k)
+                if md.get('framework_var'):
+                    continue
+                print spaces + "var: ", k,
+                pp(v, indent=indent)
+
     alloc = AllocationProblem('problem_3rt_2ac.py')
-    if 0:
+    if 1:
         alloc.run()
-        dump(alloc.SysPaxCon, recurse=True)
-        alloc.check_comp_derivatives()
+        var_dump(alloc)
         exit()
 
     for irt in xrange(alloc.num_routes):
