@@ -103,7 +103,6 @@ class pyOptSparseDriver(Driver):
         #need a counter for lb and ub arrays
         i_param = 0
 
-
         for name, param in self.get_parameters().iteritems():
 
             if isinstance(name, tuple):
