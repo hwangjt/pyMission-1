@@ -55,7 +55,7 @@ class AllocationProblem(Assembly):
             num_cp = rt_data['num_cp'][irt]
             x_range = rt_data['range'][irt] * 1.852
             altitude = 10 * np.sin(np.pi * np.linspace(0,1,num_elem+1))
-            
+
             x_init = x_range * 1e3 * (1-np.cos(np.linspace(0, 1, num_cp)*np.pi))/2/1e6
             M_init = np.ones(num_cp)*0.82
             h_init = 10 * np.sin(np.pi * x_init / (x_range/1e3))
@@ -79,6 +79,8 @@ class AllocationProblem(Assembly):
                 seg.driver.system_type = 'serial'
                 seg.coupled_solver.system_type = 'serial'
                 seg.driver.gradient_options.iprint = 0
+                seg.coupled_solver.gradient_options.iprint = 0
+                seg.coupled_solver.iprint = 0
 #                seg.coupled_solver.gradient_options.iprint = 0
                 #seg.coupled_solver.pre_setup()
 
@@ -165,7 +167,7 @@ class AllocationProblem(Assembly):
         self.demand = demand
         self.ac_avail = ac_avail
 
-        self.add('missions', Driver())        
+        self.add('missions', Driver())
         for irt in xrange(self.num_routes):
             for inac in xrange(self.num_new_ac):
                 seg_name = 'Seg_%03i_%03i'%(irt,inac)
@@ -175,7 +177,7 @@ class AllocationProblem(Assembly):
         self.missions.gradient_options.iprint = 0
 
         self.driver.workflow.add(['missions', 'SysProfit', 'SysPaxCon', 'SysAircraftCon'])
-            
+
 
 if __name__ == '__main__':
     from subprocess import call
@@ -189,7 +191,6 @@ if __name__ == '__main__':
         asm.driver.gradient_options.maxiter = 1
         asm.driver.gradient_options.derivative_direction = 'adjoint'
         asm.driver.gradient_options.iprint = 0
-        # asm.replace('driver', SimpleDriver())
         asm.driver.system_type = 'serial'
 
         asm.add('segment', seg)
@@ -216,7 +217,7 @@ if __name__ == '__main__':
             seg_name = 'Seg_%03i_%03i' % (irt,inac)
             seg = alloc.get(seg_name)
             sub_opt = setup_opt(seg)
-            
+
             sub_opt.run()
 
             call(['mv', 'SNOPT_print.out', 'SNOPT_%03i_%03i_print.out' % (irt,inac)])
@@ -241,8 +242,7 @@ if __name__ == '__main__':
             alloc.driver.add_constraint(seg_name+'.h_%03i_%03i[-1] = 0.0'%(irt,inac))
             alloc.driver.add_constraint(seg_name+'.Tmin_%03i_%03i < 0.0'%(irt,inac))
             alloc.driver.add_constraint(seg_name+'.Tmax_%03i_%03i < 0.0'%(irt,inac))
-            alloc.driver.add_constraint('%.15f < '+seg_name+'.Gamma_%03i_%03i < %.15f' % \
+            alloc.driver.add_constraint('%.15f < '+seg_name+'.Gamma_%03i_%03i < %.15f'%
                                         (alloc.gamma_lb,irt,inac,alloc.gamma_ub), linear=True)
 
     alloc.run()
-
