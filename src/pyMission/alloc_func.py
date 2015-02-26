@@ -57,7 +57,7 @@ class Profit(Component):
             result['profit'] += np.sum(prc_pax * pax_flt * arg['flt_day']) / 1e6 + \
                                 np.sum((cost_fuel * fuelburn + cost_nf) * arg['flt_day']) / 1e6
         if 'fuelburn' in arg:
-            result['profit'] += np.sum(cost_fuel * arg['fuelburn'] * flt_day) / 1e6
+            result['profit'] += np.sum(cost_fuel * arg['fuelburn'] * 1e5 * flt_day) / 1e6
 
     def apply_derivT(self, arg, result):
         pax_flt, flt_day, fuelburn = self.pax_flt, self.flt_day, self.fuelburn * 1e5
@@ -69,7 +69,7 @@ class Profit(Component):
             result['flt_day'] += prc_pax * pax_flt * arg['profit'] / 1e6 + \
                                 (cost_fuel * fuelburn + cost_nf) * arg['profit'] / 1e6
         if 'fuelburn' in result:
-            result['fuelburn'] += cost_fuel * arg['profit'] * flt_day / 1e6
+            result['fuelburn'] += cost_fuel * arg['profit'] * 1e5 * flt_day / 1e6
         
 
 class PaxCon(Component):

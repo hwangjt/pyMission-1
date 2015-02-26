@@ -203,14 +203,14 @@ class AllocationProblem(Assembly):
 
 if __name__ == '__main__':
     alloc = AllocationProblem('problem_3rt_2ac.py')
-    alloc.run()
-    dump(alloc.SysPaxCon, recurse=True)
-    alloc.check_comp_derivatives()
-    exit()
+#    alloc.run()
+#    dump(alloc.SysPaxCon, recurse=True)
+#    alloc.check_comp_derivatives()
+#    exit()
 
     alloc.replace('driver', pyOptSparseDriver())
     alloc.driver.optimizer = 'SNOPT'
-    alloc.driver.options = {'Iterations limit': 5000000}
+    alloc.driver.options = {'Iterations limit': 5000000}#, 'Verify level':3}
     alloc.driver.gradient_options.lin_solver = "linear_gs"
     alloc.driver.gradient_options.maxiter = 1
     alloc.driver.gradient_options.derivative_direction = 'adjoint'
@@ -218,10 +218,10 @@ if __name__ == '__main__':
     alloc.driver.system_type = 'serial'
 
     alloc.driver.add_objective('profit')
-#    alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
-#    alloc.driver.add_parameter('flt_day', low=0, high=10)
-#    alloc.driver.add_constraint('0.1*demand < pax_con < demand')
-#    alloc.driver.add_constraint('0.0 < ac_con < ac_avail')
+    alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
+    alloc.driver.add_parameter('flt_day', low=0, high=10)
+    alloc.driver.add_constraint('0.1*demand < pax_con < demand')
+    alloc.driver.add_constraint('0.0 < ac_con < ac_avail')
     for irt in xrange(alloc.num_routes):
         for inac in xrange(alloc.num_new_ac):
             alloc.driver.add_parameter('h_pt_%03i_%03i'%(irt,inac), low=0.0, high=14.1)
