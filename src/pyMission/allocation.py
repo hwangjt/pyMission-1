@@ -9,6 +9,7 @@ from pyMission.aeroTripan import setup_surrogate
 from pyMission.alloc_func import Profit, PaxCon, AircraftCon
 from pyMission.bsplines import setup_MBI
 
+from openmdao.main.container import dump
 from pyoptsparse_driver.pyoptsparse_driver import pyOptSparseDriver
 import check_deriv_patch
 import unconn_patch
@@ -81,8 +82,8 @@ class AllocationProblem(Assembly):
 #                seg.coupled_solver.gradient_options.iprint = 0
                 #seg.coupled_solver.pre_setup()
 
-        self.add('pax_flt', Array(np.zeros((num_routes, num_ac)), iotype='in'))
-        self.add('flt_day', Array(np.zeros((num_routes, num_ac)), iotype='in'))
+        self.add('pax_flt', Array(np.ones((num_routes, num_ac)), iotype='in'))
+        self.add('flt_day', Array(np.ones((num_routes, num_ac)), iotype='in'))
 
         cost_fuel = np.zeros((num_routes, num_ac))
         prc_pax = np.zeros((num_routes, num_ac))
@@ -197,19 +198,23 @@ class AllocationProblem(Assembly):
         self.missions.gradient_options.lin_solver = "linear_gs"
         self.missions.gradient_options.iprint = 0
 
-        self.replace('driver', pyOptSparseDriver())
-        self.driver.optimizer = 'SNOPT'
-        self.driver.options = {'Iterations limit': 5000000}
-        self.driver.gradient_options.lin_solver = "linear_gs"
-        self.driver.gradient_options.maxiter = 1
-        self.driver.gradient_options.derivative_direction = 'adjoint'
-        self.driver.gradient_options.iprint = 0
         self.driver.workflow.add(['missions', 'SysProfit', 'SysPaxCon', 'SysAircraftCon'])
-        self.driver.system_type = 'serial'
             
 
 if __name__ == '__main__':
     alloc = AllocationProblem('problem_3rt_2ac.py')
+    alloc.run()
+    dump(alloc.SysPaxCon, recurse=True)
+    exit()
+
+    alloc.replace('driver', pyOptSparseDriver())
+    alloc.driver.optimizer = 'SNOPT'
+    alloc.driver.options = {'Iterations limit': 5000000}
+    alloc.driver.gradient_options.lin_solver = "linear_gs"
+    alloc.driver.gradient_options.maxiter = 1
+    alloc.driver.gradient_options.derivative_direction = 'adjoint'
+    alloc.driver.gradient_options.iprint = 0
+    alloc.driver.system_type = 'serial'
 
     alloc.driver.add_objective('profit')
 #    alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
