@@ -57,19 +57,19 @@ class Profit(Component):
             result['profit'] += np.sum(prc_pax * pax_flt * arg['flt_day']) / 1e6 + \
                                 np.sum((cost_fuel * fuelburn + cost_nf) * arg['flt_day']) / 1e6
         if 'fuelburn' in arg:
-            result['profit'] += np.sum((cost_fuel * arg['fuelburn'] + cost_nf) * flt_day) / 1e6
+            result['profit'] += np.sum(cost_fuel * arg['fuelburn'] * flt_day) / 1e6
 
     def apply_derivT(self, arg, result):
         pax_flt, flt_day, fuelburn = self.pax_flt, self.flt_day, self.fuelburn * 1e5
         prc_pax, cost_fuel, cost_nf = self.prc_pax, self.cost_fuel, self.cost_nf
         
-        if 'pax_flt' in arg:
+        if 'pax_flt' in result:
             result['pax_flt'] += prc_pax * arg['profit'] * flt_day / 1e6
-        if 'flt_day' in arg:
+        if 'flt_day' in result:
             result['flt_day'] += prc_pax * pax_flt * arg['profit'] / 1e6 + \
                                 (cost_fuel * fuelburn + cost_nf) * arg['profit'] / 1e6
-        if 'fuelburn' in arg:
-            result['fuelburn'] += (cost_fuel * arg['profit'] + cost_nf) * flt_day / 1e6
+        if 'fuelburn' in result:
+            result['fuelburn'] += cost_fuel * arg['profit'] * flt_day / 1e6
         
 
 class PaxCon(Component):
@@ -107,17 +107,17 @@ class PaxCon(Component):
     def apply_deriv(self, arg, result):
         pax_flt, flt_day = self.pax_flt, self.flt_day
 
-        if 'pax_flt' in args:
+        if 'pax_flt' in arg:
             result['pax_con'] += np.sum(arg['pax_flt'] * flt_day, axis=1)
-        if 'flt_day' in args:
+        if 'flt_day' in arg:
             result['pax_con'] += np.sum(pax_flt * arg['flt_day'], axis=1)
 
     def apply_derivT(self, arg, result):
         pax_flt, flt_day = self.pax_flt, self.flt_day
 
-        if 'pax_flt' in args:
+        if 'pax_flt' in result:
             result['pax_flt'] += np.dot(np.diag(arg['pax_con']), flt_day)
-        if 'flt_day' in args:
+        if 'flt_day' in result:
             result['flt_day'] += np.dot(np.diag(arg['pax_con']), pax_flt)
 
 
@@ -161,16 +161,16 @@ class AircraftCon(Component):
         flt_day, time = self.flt_day, self.time
         maintenance, turnaround = self.maintenance, self.turnaround
 
-        if 'flt_day' in args:
+        if 'flt_day' in arg:
             result['ac_con'] += np.sum(arg['flt_day'] * (time * maintenance + turnaround), axis=0)
-        if 'time' in args:
+        if 'time' in arg:
             result['ac_con'] += np.sum(flt_day * arg['time'] * maintenance, axis=0)
 
     def apply_derivT(self, arg, result):
         flt_day, time = self.flt_day, self.time
         maintenance, turnaround = self.maintenance, self.turnaround
 
-        if 'flt_day' in args:
+        if 'flt_day' in result:
             result['flt_day'] += np.dot(time * maintenance + turnaround, np.diag(arg['ac_con']))
-        if 'time' in args:
+        if 'time' in result:
             result['time'] += np.dot(flt_day * maintenance, np.diag(arg['ac_con']))

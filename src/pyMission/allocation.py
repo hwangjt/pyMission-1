@@ -82,7 +82,7 @@ class AllocationProblem(Assembly):
 #                seg.coupled_solver.gradient_options.iprint = 0
                 #seg.coupled_solver.pre_setup()
 
-        self.add('pax_flt', Array(np.ones((num_routes, num_ac)), iotype='in'))
+        self.add('pax_flt', Array(10*np.ones((num_routes, num_ac)), iotype='in'))
         self.add('flt_day', Array(np.ones((num_routes, num_ac)), iotype='in'))
 
         cost_fuel = np.zeros((num_routes, num_ac))
@@ -205,6 +205,7 @@ if __name__ == '__main__':
     alloc = AllocationProblem('problem_3rt_2ac.py')
     alloc.run()
     dump(alloc.SysPaxCon, recurse=True)
+    alloc.check_comp_derivatives()
     exit()
 
     alloc.replace('driver', pyOptSparseDriver())
@@ -232,3 +233,4 @@ if __name__ == '__main__':
                                         (alloc.gamma_lb,irt,inac,alloc.gamma_ub), linear=True)
 
     alloc.run()
+
