@@ -222,6 +222,13 @@ if __name__ == '__main__':
             call(['mv', 'SNOPT_print.out', 'SNOPT_%03i_%03i_print.out' % (irt,inac)])
             call(['rm', 'SNOPT_summary.out'])
 
+    alloc.replace('driver', pyOptSparseDriver())
+    alloc.driver.optimizer = 'SNOPT'
+    alloc.driver.options = {'Iterations limit': 5000000}#, 'Verify level':3}
+    alloc.driver.gradient_options.lin_solver = "linear_gs"
+    alloc.driver.gradient_options.maxiter = 1
+    alloc.driver.gradient_options.derivative_direction = 'adjoint'
+    alloc.driver.gradient_options.iprint = 0
     alloc.driver.add_objective('profit')
     alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
     alloc.driver.add_parameter('flt_day', low=0, high=10)
