@@ -225,7 +225,7 @@ class pyOptSparseDriver(Driver):
             sol = opt(opt_prob, sens='FD', sensStep=self.gradient_options.fd_step)
         else:
             # Use OpenMDAO's differentiator for the gradient
-            sol = opt(opt_prob, sens=self.gradfunc)
+            sol = opt(opt_prob, sens=self.gradfunc, storeHistory='hist.hst')
 
         # Print results
         if self.print_results:

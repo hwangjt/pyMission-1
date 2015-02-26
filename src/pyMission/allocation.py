@@ -127,11 +127,6 @@ class AllocationProblem(Assembly):
                 iac = inac + num_existing_ac
                 seg_name = 'Seg_%03i_%03i'%(irt,inac)
 
-                #self.connect(seg_name+'.SysFuelObj.fuelburn',
-                #             'SysProfit.fuelburn[irt, iac]')
-                #self.connect(seg_name+'.SysBlockTime.time',
-                #             'SysAircraftCon.time[irt, iac]')
-
                 self.connect(seg_name+'.fuelburn',
                              'SysProfit.fuelburn[%i, %i]'%(irt,iac))
                 self.connect(seg_name+'.time',
@@ -140,25 +135,6 @@ class AllocationProblem(Assembly):
         self.create_passthrough('SysProfit.profit')
         self.create_passthrough('SysPaxCon.pax_con')
         self.create_passthrough('SysAircraftCon.ac_con')
-
-        for irt in xrange(num_routes):
-            num_elem = rt_data['num_elem'][irt]
-            num_cp = rt_data['num_cp'][irt]
-            for inac in xrange(num_new_ac):
-                self.add('h_pt_%03i_%03i'%(irt,inac), Array(np.zeros(num_cp), iotype='in'))
-                self.add('h_%03i_%03i'%(irt,inac), Array(np.zeros(num_elem+1), iotype='in'))
-                self.add('fuelburn_%03i_%03i'%(irt,inac), Float(0.0, iotype='in'))
-                self.add('Tmin_%03i_%03i'%(irt,inac), Float(0.0, iotype='in'))
-                self.add('Tmax_%03i_%03i'%(irt,inac), Float(0.0, iotype='in'))
-                self.add('Gamma_%03i_%03i'%(irt,inac), Array(np.zeros(num_elem+1), iotype='in'))
-
-                seg_name = 'Seg_%03i_%03i'%(irt,inac)
-                self.connect('h_pt_%03i_%03i'%(irt,inac), seg_name+'.h_pt')
-                self.connect(seg_name+'.h', 'h_%03i_%03i'%(irt,inac))
-                self.connect(seg_name+'.fuelburn', 'fuelburn_%03i_%03i'%(irt,inac))
-                self.connect(seg_name+'.Tmin', 'Tmin_%03i_%03i'%(irt,inac))
-                self.connect(seg_name+'.Tmax', 'Tmax_%03i_%03i'%(irt,inac))
-                self.connect(seg_name+'.Gamma', 'Gamma_%03i_%03i'%(irt,inac))
 
         pax_upper = np.zeros((num_routes, num_ac))
         demand = np.zeros(num_routes)
@@ -202,35 +178,47 @@ class AllocationProblem(Assembly):
             
 
 if __name__ == '__main__':
-    alloc = AllocationProblem('problem_3rt_2ac.py')
-#    alloc.run()
-#    dump(alloc.SysPaxCon, recurse=True)
-#    alloc.check_comp_derivatives()
-#    exit()
+    from subprocess import call
 
-    alloc.replace('driver', pyOptSparseDriver())
-    alloc.driver.optimizer = 'SNOPT'
-    alloc.driver.options = {'Iterations limit': 5000000}#, 'Verify level':3}
-    alloc.driver.gradient_options.lin_solver = "linear_gs"
-    alloc.driver.gradient_options.maxiter = 1
-    alloc.driver.gradient_options.derivative_direction = 'adjoint'
-    alloc.driver.gradient_options.iprint = 0
-    alloc.driver.system_type = 'serial'
+    def setup_opt(asm):
+        asm.replace('driver', pyOptSparseDriver())
+        asm.driver.optimizer = 'SNOPT'
+        asm.driver.options = {'Iterations limit': 5000000}#, 'Verify level':3}
+        asm.driver.gradient_options.lin_solver = "linear_gs"
+        asm.driver.gradient_options.maxiter = 1
+        asm.driver.gradient_options.derivative_direction = 'adjoint'
+        asm.driver.gradient_options.iprint = 0
+        asm.driver.system_type = 'serial'
+        
+
+    alloc = AllocationProblem('problem_3rt_2ac.py')
+    if 0:
+        alloc.run()
+        dump(alloc.SysPaxCon, recurse=True)
+        alloc.check_comp_derivatives()
+        exit()
 
     for irt in xrange(alloc.num_routes):
         for inac in xrange(alloc.num_new_ac):
-            alloc.driver.add_objective('fuelburn_%03i_%03i'%(irt,inac))
-            alloc.driver.add_parameter('h_pt_%03i_%03i'%(irt,inac), low=0.0, high=14.1)
-            alloc.driver.add_constraint('h_%03i_%03i[0] = 0.0'%(irt,inac))
-            alloc.driver.add_constraint('h_%03i_%03i[-1] = 0.0'%(irt,inac))
-            alloc.driver.add_constraint('Tmin_%03i_%03i < 0.0'%(irt,inac))
-            alloc.driver.add_constraint('Tmax_%03i_%03i < 0.0'%(irt,inac))
-            alloc.driver.add_constraint('%.15f < Gamma_%03i_%03i < %.15f' % \
-                                        (alloc.gamma_lb,irt,inac,alloc.gamma_ub), linear=True)
+            seg_name = 'Seg_%03i_%03i'%(irt,inac)
+            exec ('seg = alloc.'+seg_name)
+            setup_opt(seg)
+            seg.pre_setup()
+            seg.driver.add_objective('fuelburn')
+            seg.driver.add_parameter('h_pt', low=0.0, high=14.1)
+            seg.driver.add_constraint('h[0] = 0.0')
+            seg.driver.add_constraint('h[-1] = 0.0')
+            seg.driver.add_constraint('Tmin < 0.0')
+            seg.driver.add_constraint('Tmax < 0.0')
+            seg.driver.add_constraint('%.15f < Gamma < %.15f' % \
+                                      (alloc.gamma_lb,alloc.gamma_ub), linear=True)
             alloc.run()
-            alloc.driver.clear_objectives()
-            alloc.driver.clear_parameters()
-            alloc.driver.clear_constraints()
+            seg.driver.clear_objectives()
+            seg.driver.clear_parameters()
+            seg.driver.clear_constraints()
+            seg.replace('driver', Driver())
+            call(['mv', 'SNOPT_print.out', 'SNOPT_%03i_%03i_print.out'%(irt,inac)])
+            call(['rm', 'SNOPT_summary.out'])
 
     alloc.driver.add_objective('profit')
     alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
@@ -239,12 +227,12 @@ if __name__ == '__main__':
     alloc.driver.add_constraint('0.0 < ac_con < ac_avail')
     for irt in xrange(alloc.num_routes):
         for inac in xrange(alloc.num_new_ac):
-            alloc.driver.add_parameter('h_pt_%03i_%03i'%(irt,inac), low=0.0, high=14.1)
-            alloc.driver.add_constraint('h_%03i_%03i[0] = 0.0'%(irt,inac))
-            alloc.driver.add_constraint('h_%03i_%03i[-1] = 0.0'%(irt,inac))
-            alloc.driver.add_constraint('Tmin_%03i_%03i < 0.0'%(irt,inac))
-            alloc.driver.add_constraint('Tmax_%03i_%03i < 0.0'%(irt,inac))
-            alloc.driver.add_constraint('%.15f < Gamma_%03i_%03i < %.15f' % \
+            alloc.driver.add_parameter(seg_name+'.h_pt_%03i_%03i'%(irt,inac), low=0.0, high=14.1)
+            alloc.driver.add_constraint(seg_name+'.h_%03i_%03i[0] = 0.0'%(irt,inac))
+            alloc.driver.add_constraint(seg_name+'.h_%03i_%03i[-1] = 0.0'%(irt,inac))
+            alloc.driver.add_constraint(seg_name+'.Tmin_%03i_%03i < 0.0'%(irt,inac))
+            alloc.driver.add_constraint(seg_name+'.Tmax_%03i_%03i < 0.0'%(irt,inac))
+            alloc.driver.add_constraint('%.15f < '+seg_name+'.Gamma_%03i_%03i < %.15f' % \
                                         (alloc.gamma_lb,irt,inac,alloc.gamma_ub), linear=True)
 
     alloc.run()
