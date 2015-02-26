@@ -215,7 +215,7 @@ if __name__ == '__main__':
                 print spaces + "component: ", k
             else:
                 md = asmb.get_metadata(k)
-                if md.get('framework_var'):
+                if md.get('framework_var') or md.get('iotype')=='out':
                     continue
                 print spaces + "var: ", k,
                 pp(v, indent=indent)
