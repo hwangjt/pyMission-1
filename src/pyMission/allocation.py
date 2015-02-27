@@ -77,7 +77,7 @@ class AllocationProblem(Assembly):
 
                 seg.h_pt = h_init
                 seg.M_pt = M_init
-                seg.set_init_h_pt(altitude)
+                #seg.set_init_h_pt(altitude)
                 seg.driver.system_type = 'serial'
                 seg.coupled_solver.system_type = 'serial'
                 seg.driver.gradient_options.iprint = 0
@@ -87,7 +87,7 @@ class AllocationProblem(Assembly):
                 #seg.coupled_solver.pre_setup()
 
         self.add('pax_flt', Array(10*np.ones((num_routes, num_ac)), iotype='in'))
-        self.add('flt_day', Array(np.ones((num_routes, num_ac)), iotype='in'))
+        self.add('flt_day', Array(0.1*np.ones((num_routes, num_ac)), iotype='in'))
 
         cost_fuel = np.zeros((num_routes, num_ac))
         prc_pax = np.zeros((num_routes, num_ac))
@@ -104,7 +104,7 @@ class AllocationProblem(Assembly):
                 cost_fuel[irt, iac] = misc_data['cost/fuel'] * 2.2 / 9.81
                 prc_pax[irt, iac] = ac_data['ticket price', ac_name][irt]
                 cost_nf[irt, iac] = ac_data['flight cost no fuel', ac_name][irt]
-                maintenance[irt, iac] = ac_data['MH', ac_name]
+                maintenance[irt, iac] = ac_data['MH', ac_name] + 1
                 turnaround[irt, iac] = misc_data['turnaround']
 
         self.add('SysProfit', Profit(num_routes, num_ac,
@@ -116,7 +116,7 @@ class AllocationProblem(Assembly):
         for iac in xrange(num_existing_ac):
             ac_name = ac_data['existing_ac'][iac]
             self.SysProfit.fuelburn[:, iac] = ac_data['fuel', ac_name] / 1e5
-            self.SysAircraftCon.time[:, iac] = ac_data['block time', ac_name]
+            self.SysAircraftCon.time[:, iac] = ac_data['block time', ac_name] * 3.6e3 / 1e4
 
         self.connect('pax_flt', 'SysProfit.pax_flt')
         self.connect('flt_day', 'SysProfit.flt_day')
@@ -131,6 +131,7 @@ class AllocationProblem(Assembly):
                 iac = inac + num_existing_ac
                 seg_name = 'Seg_%03i_%03i'%(irt,inac)
 
+                self.connect('pax_flt[%i, %i]'%(irt,iac), seg_name+'.pax_flt')
                 self.connect(seg_name+'.fuelburn',
                              'SysProfit.fuelburn[%i, %i]'%(irt,iac))
                 self.connect(seg_name+'.time',
@@ -221,9 +222,11 @@ if __name__ == '__main__':
                 pp(v, indent=indent)
 
     alloc = AllocationProblem('problem_3rt_2ac.py')
-    if 1:
+    if 0:
         alloc.run()
         var_dump(alloc)
+        print alloc.SysProfit.profit
+        #alloc.check_comp_derivatives()
         exit()
 
     for irt in xrange(alloc.num_routes):

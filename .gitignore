@@ -6,6 +6,7 @@
 *openmdao_log.txt
 *~
 *SNOPT*
+*hist.hst
 
 src/CADRE/test/check_units_desc.py
 generated_images/
