@@ -5,6 +5,7 @@ import numpy as np
 from openmdao.lib.drivers.api import NewtonSolver, FixedPointIterator, BroydenSolver
 from openmdao.main.api import Assembly, set_as_top, Driver, Component
 from openmdao.main.datatypes.api import Array, Float
+from openmdao.main.mpiwrap import MPI
 
 from pyMission.segment import MissionSegment
 from pyMission.aeroTripan import setup_surrogate
@@ -221,7 +222,7 @@ if __name__ == '__main__':
                 print spaces + "var: ", k,
                 pp(v, indent=indent)
 
-    alloc = AllocationProblem('problem_3rt_2ac.py')
+    alloc = set_as_top(AllocationProblem('problem_3rt_2ac.py'))
     if 0:
         alloc.run()
         var_dump(alloc)
@@ -229,24 +230,49 @@ if __name__ == '__main__':
         #alloc.check_comp_derivatives()
         exit()
 
-    for irt in xrange(alloc.num_routes):
-        for inac in xrange(alloc.num_new_ac):
-            seg_name = 'Seg_%03i_%03i' % (irt,inac)
-            seg = alloc.get(seg_name)
-            sub_opt = setup_opt(seg)
-
-            sub_opt.run()
-
-            call(['mv', 'SNOPT_print.out', 'SNOPT_%03i_%03i_print.out' % (irt,inac)])
-            call(['rm', 'SNOPT_summary.out'])
+#    for irt in xrange(alloc.num_routes):
+#        for inac in xrange(alloc.num_new_ac):
+#            seg_name = 'Seg_%03i_%03i' % (irt,inac)
+#            seg = alloc.get(seg_name)
+#            sub_opt = setup_opt(seg)
+#
+#            sub_opt.run()
+#
+#            call(['mv', 'SNOPT_print.out', 'SNOPT_%03i_%03i_print.out' % (irt,inac)])
+#            call(['rm', 'SNOPT_summary.out'])
 
     alloc.replace('driver', pyOptSparseDriver())
     alloc.driver.optimizer = 'SNOPT'
     alloc.driver.options = {'Iterations limit': 5000000}#, 'Verify level':3}
     alloc.driver.gradient_options.lin_solver = "linear_gs"
+#    alloc.driver.gradient_options.lin_solver = 'petsc_ksp'
     alloc.driver.gradient_options.maxiter = 1
     alloc.driver.gradient_options.derivative_direction = 'adjoint'
     alloc.driver.gradient_options.iprint = 0
+    alloc.driver.system_type = 'serial'
+
+    alloc.driver.add_objective('profit')
+    for irt in xrange(alloc.num_routes):
+        for inac in xrange(alloc.num_new_ac):
+            seg_name = 'Seg_%03i_%03i' % (irt,inac)
+            alloc.driver.add_parameter(seg_name+'.h_pt', low=0.0, high=14.1)
+            alloc.driver.add_constraint(seg_name+'.h[0] = 0.0')
+            alloc.driver.add_constraint(seg_name+'.h[-1] = 0.0')
+            alloc.driver.add_constraint(seg_name+'.Tmin < 0.0')
+            alloc.driver.add_constraint(seg_name+'.Tmax < 0.0')
+            alloc.driver.add_constraint('%.15f < '%(alloc.gamma_lb) + seg_name
+                                        + '.Gamma < %.15f'%(alloc.gamma_ub),
+                                        linear=True)
+    alloc.run()
+
+    alloc.driver.clear_objectives()
+    alloc.driver.clear_parameters()
+    alloc.driver.clear_constraints()
+    
+    if MPI.COMM_WORLD.rank == 0:
+        call(['mv', 'SNOPT_print.out', 'SNOPT_pre_print.out' % (irt,inac)])
+        call(['rm', 'SNOPT_summary.out'])
+
     alloc.driver.add_objective('profit')
     alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
     alloc.driver.add_parameter('flt_day', low=0, high=10)
@@ -254,12 +280,13 @@ if __name__ == '__main__':
     alloc.driver.add_constraint('0.0 < ac_con < ac_avail')
     for irt in xrange(alloc.num_routes):
         for inac in xrange(alloc.num_new_ac):
-            alloc.driver.add_parameter(seg_name+'.h_pt_%03i_%03i'%(irt,inac), low=0.0, high=14.1)
-            alloc.driver.add_constraint(seg_name+'.h_%03i_%03i[0] = 0.0'%(irt,inac))
-            alloc.driver.add_constraint(seg_name+'.h_%03i_%03i[-1] = 0.0'%(irt,inac))
-            alloc.driver.add_constraint(seg_name+'.Tmin_%03i_%03i < 0.0'%(irt,inac))
-            alloc.driver.add_constraint(seg_name+'.Tmax_%03i_%03i < 0.0'%(irt,inac))
-            alloc.driver.add_constraint('%.15f < '+seg_name+'.Gamma_%03i_%03i < %.15f'%
-                                        (alloc.gamma_lb,irt,inac,alloc.gamma_ub), linear=True)
+            seg_name = 'Seg_%03i_%03i' % (irt,inac)
+            alloc.driver.add_parameter(seg_name+'.h_pt', low=0.0, high=14.1)
+            alloc.driver.add_constraint(seg_name+'.h[0] = 0.0')
+            alloc.driver.add_constraint(seg_name+'.h[-1] = 0.0')
+            alloc.driver.add_constraint(seg_name+'.Tmin < 0.0')
+            alloc.driver.add_constraint(seg_name+'.Tmax < 0.0')
+            alloc.driver.add_constraint('%.15f < '+seg_name+'.Gamma < %.15f'%
+                                        (alloc.gamma_lb,alloc.gamma_ub), linear=True)
 
     alloc.run()
