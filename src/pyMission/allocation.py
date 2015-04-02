@@ -255,7 +255,7 @@ if __name__ == '__main__':
     for irt in xrange(alloc.num_routes):
         for inac in xrange(alloc.num_new_ac):
             seg_name = 'Seg_%03i_%03i' % (irt,inac)
-            alloc.driver.add_parameter(seg_name+'.h_pt', low=0.0, high=14.1)
+            alloc.driver.add_parameter(seg_name+'.h_pt', low=0.0, high=16)
             alloc.driver.add_constraint(seg_name+'.h[0] = 0.0')
             alloc.driver.add_constraint(seg_name+'.h[-1] = 0.0')
             alloc.driver.add_constraint(seg_name+'.Tmin < 0.0')
@@ -270,8 +270,9 @@ if __name__ == '__main__':
     alloc.driver.clear_constraints()
     
     if MPI.COMM_WORLD.rank == 0:
-        call(['mv', 'SNOPT_print.out', 'SNOPT_pre_print.out' % (irt,inac)])
-        call(['rm', 'SNOPT_summary.out'])
+        call(['mv', 'SNOPT_print.out', 'SNOPT_pre_print.out'])
+        call(['mv', 'SNOPT_summary.out', 'SNOPT_pre_summary.out'])
+        call(['mv', 'hist.hst', 'hist_pre.hst'])
 
     alloc.driver.add_objective('profit')
     alloc.driver.add_parameter('pax_flt', low=0, high=alloc.pax_upper)
@@ -281,12 +282,12 @@ if __name__ == '__main__':
     for irt in xrange(alloc.num_routes):
         for inac in xrange(alloc.num_new_ac):
             seg_name = 'Seg_%03i_%03i' % (irt,inac)
-            alloc.driver.add_parameter(seg_name+'.h_pt', low=0.0, high=14.1)
+            alloc.driver.add_parameter(seg_name+'.h_pt', low=0.0, high=16)
             alloc.driver.add_constraint(seg_name+'.h[0] = 0.0')
             alloc.driver.add_constraint(seg_name+'.h[-1] = 0.0')
             alloc.driver.add_constraint(seg_name+'.Tmin < 0.0')
             alloc.driver.add_constraint(seg_name+'.Tmax < 0.0')
-            alloc.driver.add_constraint('%.15f < '+seg_name+'.Gamma < %.15f'%
-                                        (alloc.gamma_lb,alloc.gamma_ub), linear=True)
-
+            alloc.driver.add_constraint('%.15f < '%(alloc.gamma_lb) + seg_name
+                                        + '.Gamma < %.15f'%(alloc.gamma_ub),
+                                        linear=True)
     alloc.run()
